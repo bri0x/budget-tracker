@@ -1,0 +1,28 @@
+# Example systemd unit for running Budget Tracker as a background service.
+# Assumes the project lives in /opt/budget_tracker and runs as a dedicated "budget" user.
+# See README.md, "Running on Linux / RHEL", for install steps.
+[Unit]
+Description=Budget Tracker (PocketBase)
+After=network.target
+
+[Service]
+Type=simple
+User=budget
+Group=budget
+WorkingDirectory=/opt/budget_tracker
+# Binds to localhost only. The API has no auth; don't expose it to a network.
+ExecStart=/opt/budget_tracker/pocketbase serve --http=127.0.0.1:8090
+Restart=on-failure
+RestartSec=5
+
+# Hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+# PocketBase writes its database to pb_data and, when you edit collections in
+# the dashboard, new migration files to pb_migrations.
+ReadWritePaths=/opt/budget_tracker/pb_data /opt/budget_tracker/pb_migrations
+
+[Install]
+WantedBy=multi-user.target
