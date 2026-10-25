@@ -1,0 +1,14 @@
+{
+  "name": "budget-tracker",
+  "version": "1.0.0",
+  "description": "Self-hosted household budget and transaction tracker built on PocketBase",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "node --test \"test/**/*.test.js\""
+  }
+}

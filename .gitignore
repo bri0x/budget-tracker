@@ -4,9 +4,11 @@ pb_data/
 # PocketBase binary — download it yourself (see README)
 pocketbase
 pocketbase.exe
-# Files shipped with the PocketBase download (not part of this project)
-/CHANGELOG.md
+# PocketBase's own license, if you unzipped the full download here (setup scripts only extract the binary)
 /LICENSE.md
+
+# --- Node (tests only; the app has no dependencies) ---
+node_modules/
 
 # --- Local config ---
 pb_public/config.js
