@@ -1,6 +1,6 @@
 {
   "name": "budget-tracker",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Self-hosted household budget and transaction tracker built on PocketBase",
   "private": true,
   "type": "module",
