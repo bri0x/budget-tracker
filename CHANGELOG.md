@@ -4,6 +4,8 @@ Notable changes to this project. The format is based on [Keep a Changelog](https
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-10-24
+
 ### Added
 - **Manage Users**: add, rename, recolor and remove people in the app instead of editing `config.js`. Removing someone shows exactly what will be deleted (their transactions, income and budgets) first. Works in demo mode too.
 - People are stored in a new `people` collection. On first load it's filled from `config.js` (plus anyone who already owns records), so existing data keeps its owner. After that, `config.js` users are ignored. Restart PocketBase after updating so it creates the collection.
@@ -33,5 +35,6 @@ First public release.
 - Removing a category only deleted the current user's transactions, but removed the category for everyone, which left other users' transactions orphaned. It now shows exactly what will be deleted for every user, including budgets, before deleting it.
 - Subcategory names in the "Top 5" table could inject HTML.
 
-[Unreleased]: https://github.com/bri0x/budget-tracker/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/bri0x/budget-tracker/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/bri0x/budget-tracker/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/bri0x/budget-tracker/releases/tag/v1.0.0
