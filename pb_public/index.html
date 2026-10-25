@@ -610,8 +610,13 @@
       const num = isNaN(n) ? 0 : n;
       return num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     }
-    function currentMonth() { return (monthSelector.value || new Date().toISOString().slice(0,7)); }
-    function todayStr() { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
+    // "YYYY-MM" in local time. Don't use toISOString() for this — it converts to UTC,
+    // which shifts the month near midnight / month boundaries depending on time zone.
+    function monthKey(d) { return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; }
+    // Month n months before (negative) or after the given one, as "YYYY-MM".
+    function addMonths(d, n) { return monthKey(new Date(d.getFullYear(), d.getMonth() + n, 1)); }
+    function currentMonth() { return (monthSelector.value || monthKey(new Date())); }
+    function todayStr() { const d = new Date(); return `${monthKey(d)}-${String(d.getDate()).padStart(2,'0')}`; }
     function showToast(message, type = "error") {
       const toast = document.createElement("div");
       toast.className = `toast toast-${type}`;
@@ -1113,12 +1118,7 @@
       incomeVsSpendingChart.data.datasets[0].backgroundColor = [accent1, accent2];
       incomeVsSpendingChart.update();
 
-      const lineMonths = [];
-      const now = new Date();
-      for (let i = 5; i >= 0; i--) {
-        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-        lineMonths.push(d.toISOString().slice(0, 7));
-      }
+      const lineMonths = monthSeq(6);
       const incomeArr = lineMonths.map(m => incomeTransactions.filter(t => t.date.startsWith(m)).reduce((s, t) => s + t.amount, 0));
       const spendArr  = lineMonths.map(m => transactions.filter(t => t.date.startsWith(m)).reduce((s, t) => s + t.amount, 0));
       const savedArr  = incomeArr.map((v, i) => v - spendArr[i]);
@@ -1144,10 +1144,7 @@
     function monthSeq(n) {
       const arr = [];
       const now = new Date();
-      for (let i=n-1; i>=0; i--) {
-        const d = new Date(now.getFullYear(), now.getMonth()-i, 1);
-        arr.push(d.toISOString().slice(0,7));
-      }
+      for (let i = n - 1; i >= 0; i--) arr.push(addMonths(now, -i));
       return arr;
     }
     function updateReports() {
@@ -1332,8 +1329,7 @@
       if (activeUser === "all") { showToast("Select a specific user to apply recurring.", "info"); return; }
       const month = currentMonth();
       const [year, monthNum] = month.split("-").map(Number);
-      const prevDate = new Date(year, monthNum - 2, 1);
-      const prevMonth = prevDate.toISOString().slice(0, 7);
+      const prevMonth = addMonths(new Date(year, monthNum - 1, 1), -1);
 
       const recurring = transactions.filter(t => t.date.startsWith(prevMonth) && t.recurring && t.user === activeUser);
       if (recurring.length === 0) {
@@ -1405,17 +1401,20 @@
     let savingsChart;
 
     function updateSavingsTracker() {
-      const months = [];
-      const now = new Date();
-      const earliestTx = [...transactions, ...incomeTransactions]
-        .map(x => new Date(x.date))
-        .filter(d => !isNaN(d))
-        .sort((a, b) => a - b)[0] || now;
+      // Compare "YYYY-MM" strings directly; new Date("YYYY-MM-DD") parses as UTC midnight,
+      // which is the previous day in time zones behind UTC.
+      const thisMonth = monthKey(new Date());
+      const earliest = [...transactions, ...incomeTransactions]
+        .map(x => (x.date || "").slice(0, 7))
+        .filter(m => /^\d{4}-\d{2}$/.test(m))
+        .sort()[0] || thisMonth;
 
-      const monthCursor = new Date(earliestTx.getFullYear(), earliestTx.getMonth(), 1);
-      while (monthCursor <= now) {
-        months.push(monthCursor.toISOString().slice(0, 7));
-        monthCursor.setMonth(monthCursor.getMonth() + 1);
+      const months = [];
+      const [ey, em] = earliest.split("-").map(Number);
+      for (let i = 0; ; i++) {
+        const m = addMonths(new Date(ey, em - 1, 1), i);
+        if (m > thisMonth) break;
+        months.push(m);
       }
 
       let cumulative = 0;
@@ -1478,7 +1477,7 @@
     }
 
     // ===== Init =====
-    if (!monthSelector.value) monthSelector.value = new Date().toISOString().slice(0,7);
+    if (!monthSelector.value) monthSelector.value = monthKey(new Date());
     monthSelector.addEventListener("change", () => { renderAll(); });
     reportRange.addEventListener("change", updateReports);
     reportCategory.addEventListener("change", updateReports);
