@@ -1,6 +1,6 @@
 # Budget Tracker
 
-A self-hosted budget tracker for a household. Log spending and income, set monthly budgets per category, and see where the money goes. Everything runs on your own machine. There's no account, no cloud, and no build step: just one HTML page and [PocketBase](https://pocketbase.io).
+A self-hosted budget tracker for a household. Log spending and income, set monthly budgets per category, and see where the money goes. Everything runs on your own machine. There's no account, no cloud, and no build step: just a static web page and [PocketBase](https://pocketbase.io).
 
 - **Transactions & income:** add inline, double-click to edit, search, and mark entries recurring
 - **Budgets:** a standard amount per category, with per-month overrides and progress bars
@@ -26,6 +26,8 @@ Setup downloads PocketBase and checks its checksum, then creates `pb_public/conf
 
 It opens at <http://127.0.0.1:8090>. The first time it runs, it creates an empty database with a starter set of categories (Housing, Bills, Food, and so on). Rename or remove them under *Manage Categories*.
 
+**Just looking?** Open <http://127.0.0.1:8090/?demo> to see a made-up household with seven months of data. Demo mode runs entirely in the browser and never touches your database.
+
 Running it on a Linux server or as a service? See **[docs/linux-server.md](docs/linux-server.md)**.
 
 ## Configuration
@@ -49,7 +51,19 @@ window.BUDGET_CONFIG = {
 - **Keep it local.** The API has no login, so anyone who can reach the server can read or delete your data. That's fine on the default `127.0.0.1`; don't expose it to a network without adding auth first.
 - **Back up** with *Export JSON* in the app, or by copying `pb_data/` while PocketBase is stopped.
 - **Admin dashboard** (optional) is at <http://127.0.0.1:8090/_/>. Create a login with `./pocketbase superuser upsert you@example.com <password>`.
-- **Editing the app:** it's all in `pb_public/index.html`. Save the file and refresh the browser.
+- **Editing the app:** the code is in `pb_public/` (plain HTML, CSS and JS modules). Save a file and refresh the browser.
+
+## Tests
+
+```sh
+npm test
+```
+
+You need Node.js 20 or newer, and nothing else: there's no `npm install`. The tests cover the money and date logic, including month math in 7 time zones, plus the demo data.
+
+## Docs
+
+[Architecture](docs/architecture.md) · [Operations & troubleshooting](docs/operations.md) · [Linux server](docs/linux-server.md) · [Changelog](CHANGELOG.md)
 
 ## License
 
