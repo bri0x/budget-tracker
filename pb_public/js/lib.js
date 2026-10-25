@@ -199,6 +199,71 @@ export function describeCategoryRemoval(plan, labelFor = id => id) {
   return lines.join("\n");
 }
 
+// ===== People =====
+// Each person has a `key` that's saved as `user` on every record they own. It never
+// changes, so renaming someone (their `label`) or recoloring them is always safe.
+
+/** Badge colors offered to new people, in order. */
+export const PERSON_COLORS = ["#36a2eb", "#e44d7b", "#4caf50", "#ff9f40", "#9966ff", "#ffcd56", "#4bc0c0", "#8d6e63"];
+
+/** The first palette color nobody uses yet, or a repeat once they're all taken. */
+export function nextPersonColor(people) {
+  const used = new Set(people.map(p => (p.color || "").toLowerCase()));
+  return PERSON_COLORS.find(c => !used.has(c)) || PERSON_COLORS[people.length % PERSON_COLORS.length];
+}
+
+/**
+ * A new, unused key based on the person's name ("Mary Jo" -> "mary-jo", then "mary-jo-2").
+ * `takenKeys` should include keys still on records, so a new person never inherits old data.
+ */
+export function newPersonKey(label, takenKeys) {
+  const taken = new Set(takenKeys);
+  const base = String(label).toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 30) || "person";
+  if (!taken.has(base)) return base;
+  for (let i = 2; ; i++) if (!taken.has(`${base}-${i}`)) return `${base}-${i}`;
+}
+
+/**
+ * The people to create on first run: everyone from config.js, plus anyone who owns records
+ * but isn't in config.js (so their data doesn't disappear from view).
+ */
+export function peopleToSeed(configUsers, ...recordLists) {
+  const people = configUsers.map(u => ({ key: u.id, label: u.label || u.id, color: u.color || "" }));
+  for (const id of usersIn(...recordLists)) {
+    if (!people.some(p => p.key === id)) people.push({ key: id, label: id, color: "" });
+  }
+  for (const p of people) if (!p.color) p.color = nextPersonColor(people);
+  return people;
+}
+
+/** Everything that removing a person deletes: all of their records in every collection. */
+export function personRemovalPlan(userId, { transactions, income, standardBudgets, monthlyBudgets }) {
+  const mine = r => r.user === userId;
+  return {
+    user: userId,
+    transactions: transactions.filter(mine),
+    income: income.filter(mine),
+    budgets: [
+      ...standardBudgets.filter(mine).map(b => ({ collection: "standard_budgets", ...b })),
+      ...monthlyBudgets.filter(mine).map(b => ({ collection: "monthly_budgets", ...b }))
+    ]
+  };
+}
+
+/** Confirmation text for a person removal plan. */
+export function describePersonRemoval(plan, label = plan.user) {
+  const count = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+  const parts = [
+    plan.transactions.length && count(plan.transactions.length, "transaction", "transactions"),
+    plan.income.length && count(plan.income.length, "income entry", "income entries"),
+    plan.budgets.length && count(plan.budgets.length, "budget entry", "budget entries")
+  ].filter(Boolean);
+  const lines = [`Remove "${label}"?`];
+  if (parts.length) lines.push(`This permanently deletes their ${parts.join(", ")}.`);
+  else lines.push("They don't have any records yet.");
+  return lines.join("\n");
+}
+
 // ===== Export =====
 export function toCSVField(val) {
   const s = String(val ?? "");

@@ -2,8 +2,10 @@
 // config.js is gitignored, so your household's names stay out of the repo.
 // If config.js is missing, the app falls back to two generic users.
 window.BUDGET_CONFIG = {
-  // People who share this tracker.
-  //   id    - stored on every record in PocketBase; don't change it once you have data
+  // The starting list of people. The first time the app loads, they're copied into the
+  // database; after that, add/rename/remove people in the app under "Manage Users"
+  // and this list is ignored.
+  //   id    - stored on every record in PocketBase
   //   label - display name in the user dropdown and "All" view badges
   //   color - badge color in the "All" view
   users: [

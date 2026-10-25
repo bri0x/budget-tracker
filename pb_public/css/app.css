@@ -159,6 +159,9 @@ td input[type="text"], td input[type="number"], td input[type="date"], td select
   padding: 6px;
 }
 td input[type="checkbox"] { transform: scale(1.1); }
+.color-input { width: 44px; height: 32px; padding: 2px; cursor: pointer; }
+
+button:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .btn { cursor: pointer; }
 .btn-danger { background: #dc3545; color: #fff; border: none; padding: 6px 10px; border-radius: 4px; }

@@ -21,11 +21,11 @@ The setup scripts pin a tested version (`PB_VERSION` in `setup.sh`, `$PbVersion`
 
 ## Changing users
 
-Edit `pb_public/config.js` and refresh the browser.
+Use *Manage Users* in the app: add a person in the top row, double-click a name to rename it, or click a color to change it. Renaming is always safe, because records store the person's `key`, which never changes.
 
-- **Rename someone:** change `label` and leave `id` alone.
-- **Add someone:** add an entry with a new `id`.
-- **Changing an `id`** makes that person's existing records disappear from their view, because records store the id. If you really need to, update the `user` field on their records in the dashboard first.
+**Removing** someone permanently deletes all of their transactions, income and budgets. The app lists what will be deleted and asks first. Export a backup beforehand if you might want it back. There must always be at least one user.
+
+`config.js` only sets the people created on first run. Editing `users` there later has no effect.
 
 ## Running the tests
 
@@ -52,7 +52,7 @@ Before exposing it on a network, add PocketBase auth and restrict each collectio
 | Toast: "Could not connect to PocketBase" | PocketBase isn't running, or the page was opened as a file | Start it with the launcher or `./pocketbase serve`, and open <http://127.0.0.1:8090> rather than the HTML file |
 | Charts are blank | No internet the first time the page loads (Chart.js comes from a CDN) | Connect once. After that the browser usually has it cached |
 | `bind: address already in use` | Something else is using port 8090, often another PocketBase | Stop the other one, or use `./pocketbase serve --http=127.0.0.1:8091` |
-| Names show as "User 1 / User 2" | `pb_public/config.js` is missing | Run setup again, or copy `config.example.js` to `config.js` |
-| Someone's records vanished after editing config | Their `id` changed | Change the `id` back (see [Changing users](#changing-users)) |
+| Names show as "User 1 / User 2" | Those are the placeholders | Rename them under *Manage Users* |
+| "Could not connect to PocketBase" right after updating | PocketBase is still running the old version, so the `people` collection doesn't exist yet | Restart PocketBase so it applies the new migration |
 | `setup.ps1` "cannot be loaded… running scripts is disabled" | Windows execution policy | Run `powershell -ExecutionPolicy Bypass -File setup.ps1` |
 | systemd service won't start on RHEL | SELinux label on the binary | See [Linux server → SELinux](linux-server.md#selinux-rhel-family) |

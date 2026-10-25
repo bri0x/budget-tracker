@@ -21,7 +21,7 @@ flowchart LR
 | `pb_public/js/lib.js` | Pure logic with no DOM or network code: month math, totals, budgets, savings, recurring, CSV, category removal. Fully unit-tested |
 | `pb_public/js/api.js` | Data backends with the same interface: PocketBase REST, or in-memory for demo mode |
 | `pb_public/js/demo-data.js` | Deterministic fake household for demo mode |
-| `pb_public/config.js` | Local settings (users, PocketBase URL). Gitignored; copy it from `config.example.js` |
+| `pb_public/config.js` | Local settings (starting users, PocketBase URL). Gitignored; copy it from `config.example.js` |
 | `pb_migrations/` | Creates the collections and seeds starter categories on an empty database |
 | `test/` | `node --test` suites. They don't need a browser or PocketBase |
 
@@ -29,7 +29,7 @@ There's no build step and no npm dependencies. The browser loads the JS files di
 
 ## Data flow
 
-1. **Load:** `app.js` fetches every record from all five collections (paged, 500 per request), then filters to the selected user in the browser.
+1. **Load:** `app.js` fetches every record from all six collections (paged, 500 per request), then filters to the selected user in the browser.
 2. **Edit:** each add, edit or delete is a single REST call. On success, the in-memory copy is updated and the page re-renders. On failure, a toast appears and the copy is left alone.
 3. **Derive:** everything shown (totals, budgets, charts, savings) is computed in `lib.js` from the in-memory records. Nothing derived is stored.
 
@@ -42,8 +42,9 @@ There's no build step and no npm dependencies. The browser loads the JS files di
 | `standard_budgets` | `user`, `category`, `amount` | One per user and category |
 | `monthly_budgets` | `user`, `month`, `category`, `amount` | `month` is `YYYY-MM`. Overrides the standard budget for that month |
 | `category_data` | `name`, `subcategories` (JSON array) | **Shared by all users** |
+| `people` | `key`, `label`, `color` | `key` is unique and never changes. Filled from `config.js` on first load |
 
-`user` is a plain text id matching an entry in `config.js`. Categories are referenced by name, not by record id. That's why renaming a category isn't supported yet and why removing one is handled for every user.
+`user` is a plain text id matching a person's `key`, so renaming a person only changes their `label`. Removing a person deletes every record they own. Categories are referenced by name, not by record id. That's why renaming a category isn't supported yet and why removing one is handled for every user.
 
 ## Design decisions
 

@@ -4,6 +4,13 @@ Notable changes to this project. The format is based on [Keep a Changelog](https
 
 ## [Unreleased]
 
+### Added
+- **Manage Users**: add, rename, recolor and remove people in the app instead of editing `config.js`. Removing someone shows exactly what will be deleted (their transactions, income and budgets) first. Works in demo mode too.
+- People are stored in a new `people` collection. On first load it's filled from `config.js` (plus anyone who already owns records), so existing data keeps its owner. After that, `config.js` users are ignored. Restart PocketBase after updating so it creates the collection.
+
+### Fixed
+- The category and subcategory boxes in the "add transaction" row started out blank.
+
 ## [1.0.0] - 2026-10-24
 
 First public release.

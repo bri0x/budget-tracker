@@ -8,7 +8,6 @@ PocketBase's Linux builds are self-contained, so the only things you need to ins
 sudo dnf install -y git unzip        # Debian/Ubuntu: sudo apt install git unzip
 git clone https://github.com/bri0x/budget-tracker.git && cd budget-tracker
 ./setup.sh
-nano pb_public/config.js
 ./pocketbase serve
 ```
 
