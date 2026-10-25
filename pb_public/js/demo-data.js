@@ -105,5 +105,7 @@ export function generateDemoData(now = new Date(), { months = 7, seed = 42 } = {
     Object.entries(cats).map(([category, amount]) => ({ user, category, amount })));
   const category_data = Object.entries(DEMO_CATEGORIES).map(([name, subcategories]) => ({ name, subcategories: [...subcategories] }));
 
-  return { transactions, income, standard_budgets, monthly_budgets, category_data };
+  const people = DEMO_USERS.map(u => ({ key: u.id, label: u.label, color: u.color }));
+
+  return { transactions, income, standard_budgets, monthly_budgets, category_data, people };
 }

@@ -5,7 +5,7 @@ A self-hosted budget tracker for a household. Log spending and income, set month
 - **Transactions & income:** add inline, double-click to edit, search, and mark entries recurring
 - **Budgets:** a standard amount per category, with per-month overrides and progress bars
 - **Charts & reports:** budget vs. spent, 6-month trends, a savings tracker, and category breakdowns
-- **Multiple people:** each person has their own records, plus a combined "All" view
+- **Multiple people:** add, rename and recolor people in the app; each has their own records, plus a combined "All" view
 - **Export** to JSON or CSV, and dark mode
 
 ## Quick start
@@ -17,14 +17,14 @@ cd budget-tracker
 powershell -ExecutionPolicy Bypass -File setup.ps1  # Windows
 ```
 
-Setup downloads PocketBase and checks its checksum, then creates `pb_public/config.js`. Put your household's names in that file, then start the app:
+Setup downloads PocketBase and checks its checksum, then creates `pb_public/config.js`. Start the app:
 
 | | |
 |---|---|
 | **Windows** | double-click `Launch Budget Tracker.bat` |
 | **macOS / Linux** | `./launch.sh` |
 
-It opens at <http://127.0.0.1:8090>. The first time it runs, it creates an empty database with a starter set of categories (Housing, Bills, Food, and so on). Rename or remove them under *Manage Categories*.
+It opens at <http://127.0.0.1:8090>. The first time it runs, it creates an empty database with two placeholder users and a starter set of categories (Housing, Bills, Food, and so on). Rename people under *Manage Users* and categories under *Manage Categories*.
 
 **Just looking?** Open <http://127.0.0.1:8090/?demo> to see a made-up household with seven months of data. Demo mode runs entirely in the browser and never touches your database.
 
@@ -44,7 +44,7 @@ window.BUDGET_CONFIG = {
 };
 ```
 
-`id` is saved on every record, so **don't rename it once you have data**. `label` and `color` are safe to change at any time.
+`users` is only the **starting** list: the first time the app loads, it copies these people into the database. After that, manage people in the app under *Manage Users*, and changes to `users` here are ignored. You can skip editing it entirely and rename the placeholders in the app.
 
 ## Good to know
 

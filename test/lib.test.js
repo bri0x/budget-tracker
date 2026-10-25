@@ -3,7 +3,8 @@ import assert from "node:assert/strict";
 import {
   fmt, monthKey, dateKey, addMonths, parseMonth, monthSeq, monthRange, monthTotal, usersIn,
   effectiveBudget, budgetStatus, savingsRows, topSubcategories, txMatchesFilter, categoryColor,
-  recurringToCopy, categoryRemovalPlan, describeCategoryRemoval, toCSVField, transactionsToCSV
+  recurringToCopy, categoryRemovalPlan, describeCategoryRemoval, toCSVField, transactionsToCSV,
+  PERSON_COLORS, nextPersonColor, newPersonKey, peopleToSeed, personRemovalPlan, describePersonRemoval
 } from "../pb_public/js/lib.js";
 
 const tx = (date, amount, extra = {}) => ({ user: "a", date, amount, category: "Food", subcategory: "Groceries", ...extra });
@@ -197,6 +198,49 @@ describe("category removal", () => {
   test("unused category says so", () => {
     const msg = describeCategoryRemoval(categoryRemovalPlan("Travel", data));
     assert.match(msg, /No transactions or budgets use it/);
+  });
+});
+
+describe("people", () => {
+  test("new keys come from the name and never collide", () => {
+    assert.equal(newPersonKey("Mary Jo", []), "mary-jo");
+    assert.equal(newPersonKey("  Zoë!! ", []), "zoe");
+    assert.equal(newPersonKey("Sam", ["sam"]), "sam-2");
+    assert.equal(newPersonKey("Sam", ["sam", "sam-2"]), "sam-3");
+    assert.equal(newPersonKey("😀", []), "person");
+  });
+  test("new people get the first unused color", () => {
+    assert.equal(nextPersonColor([]), PERSON_COLORS[0]);
+    assert.equal(nextPersonColor([{ color: PERSON_COLORS[0].toUpperCase() }]), PERSON_COLORS[1]);
+    const all = PERSON_COLORS.map(color => ({ color }));
+    assert.ok(PERSON_COLORS.includes(nextPersonColor(all)));
+  });
+  test("first-run seed keeps config.js ids and adds anyone who owns records", () => {
+    const people = peopleToSeed(
+      [{ id: "alex", label: "Alex", color: "#111111" }, { id: "sam", label: "Sam" }],
+      [tx("2026-03-01", 5, { user: "alex" }), tx("2026-03-02", 5, { user: "old" })], []
+    );
+    assert.deepEqual(people.map(p => [p.key, p.label]), [["alex", "Alex"], ["sam", "Sam"], ["old", "old"]]);
+    assert.equal(people[0].color, "#111111");
+    assert.ok(people.every(p => p.color));
+    assert.notEqual(people[1].color, people[2].color);
+  });
+  const data = {
+    transactions: [tx("2026-03-01", 5, { id: "t1", user: "a" }), tx("2026-03-02", 5, { id: "t2", user: "b" })],
+    income: [{ id: "i1", user: "a" }, { id: "i2", user: "a" }],
+    standardBudgets: [{ id: "s1", user: "a" }],
+    monthlyBudgets: [{ id: "m1", user: "b" }]
+  };
+  test("removal plan covers every collection, for that person only", () => {
+    const plan = personRemovalPlan("a", data);
+    assert.deepEqual(plan.transactions.map(r => r.id), ["t1"]);
+    assert.deepEqual(plan.income.map(r => r.id), ["i1", "i2"]);
+    assert.deepEqual(plan.budgets.map(b => `${b.collection}/${b.id}`), ["standard_budgets/s1"]);
+  });
+  test("removal confirmation spells out what gets deleted", () => {
+    assert.match(describePersonRemoval(personRemovalPlan("a", data), "Alex"),
+      /Remove "Alex"\?\nThis permanently deletes their 1 transaction, 2 income entries, 1 budget entry\./);
+    assert.match(describePersonRemoval(personRemovalPlan("z", data), "Zed"), /don't have any records/);
   });
 });
 

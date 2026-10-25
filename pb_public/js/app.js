@@ -1,16 +1,19 @@
 import {
   fmt, monthKey, dateKey, addMonths, parseMonth, monthSeq, monthTotal, usersIn, effectiveBudget, budgetStatus,
   savingsRows, topSubcategories, txMatchesFilter, categoryColor, recurringToCopy,
-  categoryRemovalPlan, describeCategoryRemoval, transactionsToCSV
+  categoryRemovalPlan, describeCategoryRemoval, transactionsToCSV,
+  newPersonKey, nextPersonColor, peopleToSeed, personRemovalPlan, describePersonRemoval
 } from "./lib.js";
 import { createPocketBaseApi, createMemoryApi } from "./api.js";
-import { generateDemoData, DEMO_USERS } from "./demo-data.js";
+import { generateDemoData } from "./demo-data.js";
 
 // ===== Config (override in config.js — see config.example.js) =====
 // Demo mode (?demo in the URL) uses a fake household kept in memory and never touches PocketBase.
 const DEMO = new URLSearchParams(location.search).has("demo");
 const CONFIG = window.BUDGET_CONFIG || {};
-const USERS = DEMO ? DEMO_USERS : (CONFIG.users && CONFIG.users.length) ? CONFIG.users : [
+// People live in the "people" collection (Manage Users). config.js only supplies the
+// first set, copied into the database on first run.
+const CONFIG_USERS = (CONFIG.users && CONFIG.users.length) ? CONFIG.users : [
   { id: "user1", label: "User 1", color: "#36a2eb" },
   { id: "user2", label: "User 2", color: "#e44d7b" }
 ];
@@ -27,6 +30,7 @@ const pbDelete = (c, id) => api.remove(c, id);
 if (DEMO) document.getElementById("demoBanner").hidden = false;
 
 // ===== Data =====
+let USERS = []; // { id (the person's key), label, color, _pbId }
 let categoryData = {};
 let categoryMeta = {}; // category name -> PocketBase record id
 let transactions = [];
@@ -34,18 +38,31 @@ let incomeTransactions = [];
 let standardBudgets = [];
 let monthlyBudgets = [];
 let activeUser = localStorage.getItem(STORAGE_PREFIX + "activeUser");
-if (activeUser !== "all" && !USERS.some(u => u.id === activeUser)) activeUser = USERS[0].id;
+
+const toUser = r => ({ _pbId: r.id, id: r.key, label: r.label, color: r.color });
+
+// First run: copy config.js's people (plus anyone who already owns records) into the database.
+async function seedPeople(...recordLists) {
+  for (const p of peopleToSeed(CONFIG_USERS, ...recordLists)) {
+    try { await pbCreate("people", p); } catch(e) { /* another tab got there first */ }
+  }
+  return pbList("people");
+}
 
 async function loadData() {
-  const byUser = r => activeUser === "all" || r.user === activeUser;
   try {
-    const [txRaw, incRaw, sbRaw, mbRaw, catRaw] = await Promise.all([
+    const [txRaw, incRaw, sbRaw, mbRaw, catRaw, peopleRaw] = await Promise.all([
       pbList("transactions"),
       pbList("income"),
       pbList("standard_budgets"),
       pbList("monthly_budgets"),
-      pbList("category_data")
+      pbList("category_data"),
+      pbList("people")
     ]);
+    const people = peopleRaw.length ? peopleRaw : await seedPeople(txRaw, incRaw, sbRaw, mbRaw);
+    USERS = people.map(toUser);
+    if (activeUser !== "all" && !USERS.some(u => u.id === activeUser)) activeUser = USERS[0]?.id || "all";
+    const byUser = r => activeUser === "all" || r.user === activeUser;
     transactions = txRaw.filter(byUser).map(r => ({
       _pbId: r.id, user: r.user, date: r.date, category: r.category,
       subcategory: r.subcategory, description: r.description,
@@ -107,7 +124,7 @@ function showToast(message, type = "error") {
   setTimeout(() => toast.remove(), 3500);
 }
 function budgetUser() {
-  return activeUser === "all" ? USERS[0].id : activeUser;
+  return activeUser === "all" ? USERS[0]?.id : activeUser;
 }
 function makeUserBadge(userId) {
   const badge = document.createElement("span");
@@ -165,7 +182,7 @@ function makeInput(initial, type = "text", opts = {}) {
   if (opts.min !== undefined) el.min = opts.min;
   if (type === "select" && opts.options) {
     opts.options.forEach(o => el.add(new Option(o, o)));
-    if (initial !== undefined) el.value = initial;
+    if (initial) el.value = initial;
   }
   return el;
 }
@@ -723,6 +740,113 @@ document.getElementById("removeSubcategoryBtn").addEventListener("click", async 
   }
 });
 
+// ===== User Management =====
+const userTableBody = document.getElementById("userTableBody");
+
+function makeColorInput(value) {
+  const el = document.createElement("input");
+  el.type = "color";
+  el.value = value || "#36a2eb";
+  el.className = "color-input";
+  return el;
+}
+
+function renderUserTable() {
+  userTableBody.innerHTML = "";
+
+  // Inline add row
+  const addRow = document.createElement("tr");
+  const addColor = makeColorInput(nextPersonColor(USERS));
+  const addName = makeInput("", "text", { placeholder: "Name" });
+  const addBtn = document.createElement("button");
+  addBtn.textContent = "Add";
+  addBtn.className = "btn";
+  addBtn.onclick = async () => {
+    const label = addName.value.trim();
+    if (!label) { showToast("Enter a name to add a user."); return; }
+    if (USERS.some(u => u.label.toLowerCase() === label.toLowerCase())) { showToast("Someone already has that name."); return; }
+    try {
+      // Keys still on records count as taken, so a new person never inherits someone's old data.
+      const [allTx, allIncome, allStandard, allMonthly] = await Promise.all([
+        pbList("transactions"), pbList("income"), pbList("standard_budgets"), pbList("monthly_budgets")
+      ]);
+      const taken = [...USERS.map(u => u.id), ...usersIn(allTx, allIncome, allStandard, allMonthly)];
+      const rec = await pbCreate("people", { key: newPersonKey(label, taken), label, color: addColor.value });
+      USERS.push(toUser(rec));
+      populateUsers();
+      showToast(`Added ${label}.`, "success");
+    } catch(e) { showToast("Failed to add user."); }
+  };
+  const c1 = document.createElement("td"); c1.appendChild(addColor);
+  const c2 = document.createElement("td"); c2.appendChild(addName);
+  const c3 = document.createElement("td"); c3.appendChild(addBtn);
+  addRow.append(c1, c2, c3);
+  userTableBody.appendChild(addRow);
+  addName.addEventListener("keydown", e => { if (e.key === "Enter") addBtn.click(); });
+
+  USERS.forEach(u => {
+    const tr = document.createElement("tr");
+
+    const tdColor = document.createElement("td");
+    const color = makeColorInput(u.color);
+    color.title = "Badge color in the \"All\" view";
+    color.addEventListener("change", async () => {
+      try { await pbUpdate("people", u._pbId, { color: color.value }); u.color = color.value; populateUsers(); }
+      catch(e) { showToast("Failed to update."); color.value = u.color; }
+    });
+    tdColor.appendChild(color);
+
+    const tdName = document.createElement("td");
+    tdName.textContent = u.label;
+    tdName.title = "Double-click to rename.";
+    tdName.ondblclick = () => activateCellEdit(tdName, u.label, "text", async (val) => {
+      const label = val.trim();
+      if (!label || label === u.label) { renderUserTable(); return; }
+      if (USERS.some(x => x !== u && x.label.toLowerCase() === label.toLowerCase())) {
+        showToast("Someone already has that name."); renderUserTable(); return;
+      }
+      try { await pbUpdate("people", u._pbId, { label }); u.label = label; populateUsers(); }
+      catch(e) { showToast("Failed to update."); renderUserTable(); }
+    });
+
+    const tdAct = document.createElement("td");
+    const del = document.createElement("button"); del.textContent = "Remove"; del.className = "btn btn-danger";
+    del.disabled = USERS.length === 1;
+    if (del.disabled) del.title = "There has to be at least one user.";
+    del.onclick = () => removeUser(u);
+    tdAct.appendChild(del);
+
+    tr.append(tdColor, tdName, tdAct);
+    userTableBody.appendChild(tr);
+  });
+}
+
+// Removing someone deletes every record they own, across all collections.
+async function removeUser(u) {
+  let plan;
+  try {
+    const [allTx, allIncome, allStandard, allMonthly] = await Promise.all([
+      pbList("transactions"), pbList("income"), pbList("standard_budgets"), pbList("monthly_budgets")
+    ]);
+    plan = personRemovalPlan(u.id, { transactions: allTx, income: allIncome, standardBudgets: allStandard, monthlyBudgets: allMonthly });
+  } catch(e) { showToast("Could not check this user's records."); return; }
+
+  if (!confirm(describePersonRemoval(plan, u.label))) return;
+  try {
+    await Promise.all([
+      ...plan.transactions.map(t => pbDelete("transactions", t.id)),
+      ...plan.income.map(t => pbDelete("income", t.id)),
+      ...plan.budgets.map(b => pbDelete(b.collection, b.id))
+    ]);
+    await pbDelete("people", u._pbId);
+    showToast(`Removed ${u.label}.`, "success");
+  } catch(e) {
+    showToast("Failed to remove user. Some records may have been deleted; reloading.");
+  }
+  await loadData();
+  populateUsers(); destroyAllCharts(); renderAll();
+}
+
 // ===== Backup =====
 document.getElementById("exportDataBtn").addEventListener("click", () => {
   const clean = arr => arr.map(({ _pbId, ...rest }) => rest);
@@ -876,9 +1000,15 @@ document.getElementById("txSearch").addEventListener("input", e => {
 });
 
 const activeUserSelect = document.getElementById("activeUserSelect");
-USERS.forEach(u => activeUserSelect.add(new Option(u.label, u.id)));
-activeUserSelect.add(new Option("All", "all"));
-activeUserSelect.value = activeUser;
+// Refreshes everything that shows people's names or colors.
+function populateUsers() {
+  activeUserSelect.innerHTML = "";
+  USERS.forEach(u => activeUserSelect.add(new Option(u.label, u.id)));
+  activeUserSelect.add(new Option("All", "all"));
+  activeUserSelect.value = activeUser;
+  renderUserTable();
+  if (activeUser === "all") { renderTransactionsTable(currentMonth()); renderIncomeTable(currentMonth()); }
+}
 activeUserSelect.addEventListener("change", async () => {
   activeUser = activeUserSelect.value;
   localStorage.setItem(STORAGE_PREFIX + "activeUser", activeUser);
@@ -890,6 +1020,7 @@ activeUserSelect.addEventListener("change", async () => {
 
 (async () => {
   await loadData();
+  populateUsers();
   populateCategories();
   renderAll();
 })();
